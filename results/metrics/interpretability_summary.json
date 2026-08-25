@@ -1,0 +1,21 @@
+{
+  "model4_gate_coefficients": {
+    "log_user_count": -0.10704175871326208,
+    "log_item_count": 0.05663489231322598,
+    "cf_known_user": 0.0,
+    "cf_known_item": 0.03649309786496518,
+    "cb_max_sim": -0.04527469104184775,
+    "cb_support": 0.006379077629417325,
+    "cb_sim_weight_sum": -0.004974545560395225,
+    "pred_gap": -0.03368066417033884,
+    "abs_pred_gap": -0.02584455135383822
+  },
+  "model4_gate_bias": 0.8073236514546851,
+  "interpretability_scores": {
+    "3_StaticHybrid": 5,
+    "4_LearnedGate": 4,
+    "6_GAEvolvedGate": 4,
+    "5_BanditGate": 3,
+    "7_SequentialGate": 1
+  }
+}
