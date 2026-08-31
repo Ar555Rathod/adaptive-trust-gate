@@ -25,12 +25,12 @@ from atg.utils.segments import build_user_segments, attach_segments
 SEEDS = [42, 1, 2, 3, 4]
 
 
-def run_one_seed(seed: int, movies_df: pd.DataFrame, tags_df: pd.DataFrame) -> dict:
+def run_one_seed(seed: int, items_df: pd.DataFrame) -> dict:
     train_df, val_df, test_df = build_splits(seed=seed)
     user_segments = build_user_segments(train_df)
 
     cf = CFExpertSVDpp(random_state=seed).fit(train_df)
-    cb = ContentBasedExpert().fit(train_df, movies_df, tags_df)
+    cb = ContentBasedExpert().fit(train_df, items_df)
 
     val_scored = attach_segments(val_df.copy(), user_segments)
     val_scored["cf_pred"] = cf.predict_batch(val_scored)
@@ -52,11 +52,10 @@ def run_one_seed(seed: int, movies_df: pd.DataFrame, tags_df: pd.DataFrame) -> d
 
 
 def main():
-    movies_df = pd.read_csv(config.MOVIES_CSV)
-    tags_df = pd.read_csv(config.TAGS_CSV)
+    items_df = pd.read_csv(config.NORMALIZED_ITEMS_CSV)
 
     print(f"Running Model 3 across {len(SEEDS)} seeds: {SEEDS}")
-    per_seed = [run_one_seed(s, movies_df, tags_df) for s in SEEDS]
+    per_seed = [run_one_seed(s, items_df) for s in SEEDS]
     alphas = [m.pop("_alpha") for m in per_seed]
 
     agg = aggregate_segmented_metrics(per_seed)

@@ -45,7 +45,7 @@ def build_user_train_sequences(train_df: pd.DataFrame) -> dict:
     for uid, g in train_df.sort_values("timestamp").groupby("userId"):
         seqs[uid] = (
             g["timestamp"].to_numpy(),
-            g["movieId"].to_numpy(),
+            g["itemId"].to_numpy(),
             g["rating"].to_numpy(dtype=float),
         )
     return seqs
@@ -92,7 +92,7 @@ def _step_features(cb_expert, item_popularity, query_ts, query_item_id, timestam
 
 
 def build_sequence_batch(df: pd.DataFrame, seqs: dict, cb_expert, item_popularity,
-                          user_col="userId", item_col="movieId", ts_col="timestamp"):
+                          user_col="userId", item_col="itemId", ts_col="timestamp"):
     """Returns padded (left-zero-padded) long/short tensors + lengths + a
     fallback mask (prior history shorter than SEQ_MIN_HISTORY).
     """

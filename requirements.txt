@@ -5,3 +5,4 @@ scikit-learn
 scikit-surprise
 matplotlib
 tqdm
+torch

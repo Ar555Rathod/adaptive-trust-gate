@@ -37,8 +37,7 @@ def evaluate(name, expert, df, user_segments, pred_col):
 
 def main():
     train_df, val_df, test_df = load_splits()
-    movies_df = pd.read_csv(config.MOVIES_CSV)
-    tags_df = pd.read_csv(config.TAGS_CSV)
+    items_df = pd.read_csv(config.NORMALIZED_ITEMS_CSV)
     user_segments = build_user_segments(train_df)
 
     print("Training CF expert (SVD++)...")
@@ -48,7 +47,7 @@ def main():
 
     print("\nTraining Content-Based expert...")
     cb = ContentBasedExpert()
-    cb.fit(train_df, movies_df, tags_df)
+    cb.fit(train_df, items_df)
     print(f"  train_time_sec={cb.train_time_sec:.2f}  n_params(repr size)={cb.n_params()}")
 
     with open(config.MODELS_DIR / "cf_svdpp.pkl", "wb") as f:

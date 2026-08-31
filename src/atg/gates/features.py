@@ -27,11 +27,11 @@ FEATURE_COLUMNS = [
 
 
 def build_item_popularity(train_df: pd.DataFrame) -> dict:
-    return train_df.groupby("movieId").size().to_dict()
+    return train_df.groupby("itemId").size().to_dict()
 
 
 def build_gate_features(df: pd.DataFrame, item_popularity: dict, cf_expert, cb_expert,
-                         user_col: str = "userId", item_col: str = "movieId") -> pd.DataFrame:
+                         user_col: str = "userId", item_col: str = "itemId") -> pd.DataFrame:
     """`df` must already carry cf_pred, cb_pred, and train_rating_count
     (see atg.utils.segments.attach_segments + scripts/02_train_experts.py).
     """

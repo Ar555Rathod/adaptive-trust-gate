@@ -30,30 +30,22 @@ class ContentBasedExpert:
         self.train_time_sec = None
         self.global_mean_ = None
         self.user_mean_ = {}
-        self.item_index_ = {}   # movieId -> row index in self.item_vectors
+        self.item_index_ = {}   # itemId -> row index in self.item_vectors
         self.item_vectors = None
-        self.user_train_history_ = {}  # userId -> list[(movieId, rating)]
+        self.user_train_history_ = {}  # userId -> list[(itemId, rating)]
 
-    def fit(self, train_df: pd.DataFrame, movies_df: pd.DataFrame, tags_df: pd.DataFrame | None = None) -> "ContentBasedExpert":
+    def fit(self, train_df: pd.DataFrame, items_df: pd.DataFrame) -> "ContentBasedExpert":
         start = time.perf_counter()
 
-        tags_per_movie = {}
-        if tags_df is not None:
-            grouped = tags_df.groupby("movieId")["tag"].apply(lambda s: " ".join(s.astype(str).str.lower()))
-            tags_per_movie = grouped.to_dict()
-
-        movies = movies_df.reset_index(drop=True)
-        self.item_index_ = {mid: idx for idx, mid in enumerate(movies["movieId"])}
-        corpus = [
-            _soup(row.genres, tags_per_movie.get(row.movieId, ""))
-            for row in movies.itertuples(index=False)
-        ]
+        items = items_df.reset_index(drop=True)
+        self.item_index_ = {mid: idx for idx, mid in enumerate(items["itemId"])}
+        corpus = items["metadata_text"].fillna("").tolist()
         self.item_vectors = self.vectorizer.fit_transform(corpus)  # rows are L2-normalized by default
 
         self.global_mean_ = float(train_df["rating"].mean())
         self.user_mean_ = train_df.groupby("userId")["rating"].mean().to_dict()
         self.user_train_history_ = {
-            uid: list(zip(g["movieId"], g["rating"]))
+            uid: list(zip(g["itemId"], g["rating"]))
             for uid, g in train_df.groupby("userId")
         }
 
@@ -105,7 +97,7 @@ class ContentBasedExpert:
         score = float(np.dot(w, r) / w.sum())
         return float(np.clip(score, config.RATING_MIN, config.RATING_MAX))
 
-    def predict_batch(self, df: pd.DataFrame, user_col: str = "userId", item_col: str = "movieId") -> np.ndarray:
+    def predict_batch(self, df: pd.DataFrame, user_col: str = "userId", item_col: str = "itemId") -> np.ndarray:
         return np.array([self.predict(u, i) for u, i in zip(df[user_col], df[item_col])])
 
     def similarity_diagnostics(self, user_id, item_id) -> tuple[float, int, float]:

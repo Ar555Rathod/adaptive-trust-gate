@@ -35,13 +35,13 @@ from atg.utils.segments import build_user_segments, attach_segments
 SEEDS = [42, 1, 2, 3, 4]
 
 
-def run_pipeline_for_seed(seed: int, movies_df: pd.DataFrame, tags_df: pd.DataFrame) -> dict:
+def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
     train_df, val_df, test_df = build_splits(seed=seed)
     user_segments = build_user_segments(train_df)
     item_pop = build_item_popularity(train_df)
 
     cf = CFExpertSVDpp(random_state=seed).fit(train_df)
-    cb = ContentBasedExpert().fit(train_df, movies_df, tags_df)
+    cb = ContentBasedExpert().fit(train_df, items_df)
 
     def score(df):
         out = attach_segments(df.copy(), user_segments)
@@ -93,14 +93,13 @@ def run_pipeline_for_seed(seed: int, movies_df: pd.DataFrame, tags_df: pd.DataFr
 
 
 def main():
-    movies_df = pd.read_csv(config.MOVIES_CSV)
-    tags_df = pd.read_csv(config.TAGS_CSV)
+    items_df = pd.read_csv(config.NORMALIZED_ITEMS_CSV)
 
     print(f"Running full 7-model pipeline across {len(SEEDS)} seeds: {SEEDS}")
     per_seed = {}
     for seed in SEEDS:
         start = time.perf_counter()
-        results = run_pipeline_for_seed(seed, movies_df, tags_df)
+        results = run_pipeline_for_seed(seed, items_df)
         elapsed = time.perf_counter() - start
         for name, m in results.items():
             per_seed.setdefault(name, []).append(m)

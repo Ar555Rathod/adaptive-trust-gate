@@ -125,7 +125,7 @@ def build_case_studies():
         rows.append(picked)
     case_df = pd.concat(rows).reset_index(drop=True)
 
-    cols = ["userId", "movieId", "segment", "train_rating_count", "rating",
+    cols = ["userId", "itemId", "segment", "train_rating_count", "rating",
             "pred__1_CF_SVDpp", "pred__2_ContentBased", "pred__3_StaticHybrid",
             "g4", "pred__4_LearnedGate", "g6", "pred__6_GAEvolvedGate",
             "g7", "used_fallback_7", "pred__7_SequentialGate"]

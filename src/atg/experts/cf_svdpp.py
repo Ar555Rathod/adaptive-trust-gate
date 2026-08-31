@@ -24,7 +24,7 @@ class CFExpertSVDpp:
 
     def fit(self, train_df: pd.DataFrame) -> "CFExpertSVDpp":
         reader = Reader(rating_scale=(config.RATING_MIN, config.RATING_MAX))
-        data = Dataset.load_from_df(train_df[["userId", "movieId", "rating"]], reader)
+        data = Dataset.load_from_df(train_df[["userId", "itemId", "rating"]], reader)
         trainset = data.build_full_trainset()
 
         start = time.perf_counter()
@@ -44,7 +44,7 @@ class CFExpertSVDpp:
         pred = self.algo.predict(user_id, item_id, clip=True)
         return float(pred.est)
 
-    def predict_batch(self, df: pd.DataFrame, user_col: str = "userId", item_col: str = "movieId") -> np.ndarray:
+    def predict_batch(self, df: pd.DataFrame, user_col: str = "userId", item_col: str = "itemId") -> np.ndarray:
         return np.array([self.predict(u, i) for u, i in zip(df[user_col], df[item_col])])
 
     def is_known_user(self, user_id) -> bool:

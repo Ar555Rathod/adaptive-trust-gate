@@ -1,18 +1,32 @@
 """Project-wide paths and constants for the Adaptive Trust Gate pipeline."""
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ml-latest-small"
-PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
-RESULTS_DIR = PROJECT_ROOT / "results"
+DATASET_NAME = os.environ.get("ATG_DATASET", "movielens")
+
+if DATASET_NAME == "movielens":
+    RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ml-latest-small"
+elif DATASET_NAME == "goodreads":
+    RAW_DIR = PROJECT_ROOT / "data" / "raw" / "goodreads"
+else:
+    RAW_DIR = PROJECT_ROOT / "data" / "raw" / DATASET_NAME
+
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed" / DATASET_NAME
+RESULTS_DIR = PROJECT_ROOT / "results" / DATASET_NAME
 MODELS_DIR = RESULTS_DIR / "models"
 METRICS_DIR = RESULTS_DIR / "metrics"
 PREDICTIONS_DIR = RESULTS_DIR / "predictions"
 
+# Legacy/raw input files (used by normalize.py)
 RATINGS_CSV = RAW_DIR / "ratings.csv"
 MOVIES_CSV = RAW_DIR / "movies.csv"
 TAGS_CSV = RAW_DIR / "tags.csv"
+
+# Normalized data paths
+NORMALIZED_INTERACTIONS_CSV = PROCESSED_DIR / "interactions.csv"
+NORMALIZED_ITEMS_CSV = PROCESSED_DIR / "items.csv"
 
 TRAIN_CSV = PROCESSED_DIR / "train.csv"
 VAL_CSV = PROCESSED_DIR / "val.csv"

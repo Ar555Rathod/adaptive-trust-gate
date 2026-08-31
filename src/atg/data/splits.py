@@ -20,7 +20,7 @@ from atg import config
 
 
 def build_splits(seed: int = config.RANDOM_SEED) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    ratings = pd.read_csv(config.RATINGS_CSV)
+    ratings = pd.read_csv(config.NORMALIZED_INTERACTIONS_CSV)
     rng = np.random.default_rng(seed)
 
     users = ratings["userId"].unique()
@@ -30,8 +30,7 @@ def build_splits(seed: int = config.RANDOM_SEED) -> tuple[pd.DataFrame, pd.DataF
 
     train_parts, val_parts, test_parts = [], [], []
     for uid, group in ratings.groupby("userId", sort=True):
-        order = rng.permutation(len(group))
-        group = group.iloc[order]
+        group = group.sort_values("timestamp")
         n = len(group)
 
         if uid in cold_users:

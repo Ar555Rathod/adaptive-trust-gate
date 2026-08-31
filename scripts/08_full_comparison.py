@@ -49,14 +49,14 @@ def dig(d, path):
 
 def main():
     base = pd.read_csv(config.PREDICTIONS_DIR / "experts_test.csv")
-    master = base[["userId", "movieId", "rating", "segment", "train_rating_count"]].copy()
+    master = base[["userId", "itemId", "rating", "segment", "train_rating_count"]].copy()
 
     accuracy = {}
     ranking = {}
     for name, (fname, col) in MODELS.items():
         df = pd.read_csv(config.PREDICTIONS_DIR / fname)
         assert (df["userId"].to_numpy() == base["userId"].to_numpy()).all(), f"{name} not row-aligned"
-        assert (df["movieId"].to_numpy() == base["movieId"].to_numpy()).all(), f"{name} not row-aligned"
+        assert (df["itemId"].to_numpy() == base["itemId"].to_numpy()).all(), f"{name} not row-aligned"
         master[f"pred__{name}"] = df[col].to_numpy()
 
         scored = base.copy()

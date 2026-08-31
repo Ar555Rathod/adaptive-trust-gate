@@ -4,5 +4,12 @@ __pycache__/
 .DS_Store
 .claude/settings.local.json
 
-# Raw datasets are large/downloadable; not committed (goodreads file alone is ~100MB)
+# Raw and processed datasets are large/downloadable; not committed
 data/raw/
+data/processed/
+
+# Results and models are very large
+results/
+
+# Temporary downloads
+*.crdownload
