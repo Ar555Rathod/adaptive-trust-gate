@@ -34,8 +34,21 @@ Due to the size of the dataset (~34 million interactions) and the computational 
    %cd adaptive-trust-gate
    !pip install -r requirements.txt
    ```
-3. Since the dataset files are too large for GitHub, you will need to upload them manually. Upload both `goodreads_books_young_adult.json.gz` and `goodreads_interactions_young_adult.json.gz` directly into the `data/raw/goodreads/` directory within the Colab file explorer.
-4. Run the pipeline end-to-end:
+3. **Mount Google Drive & Link Data:**
+   Since the dataset is 1.8GB and Colab deletes local files when you disconnect, you should upload the datasets to your Google Drive to avoid re-uploading them every time. 
+   Upload `goodreads_books_young_adult.json.gz` and `goodreads_interactions_young_adult.json.gz` to a folder in your Drive (e.g., `MyDrive/datasets/goodreads/`).
+   
+   Then, in your Colab notebook, mount your Drive and copy the files into the repository:
+   ```python
+   from google.colab import drive
+   drive.mount('/content/drive')
+   ```
+   ```bash
+   !mkdir -p data/raw/goodreads
+   !cp /content/drive/MyDrive/datasets/goodreads/*.json.gz data/raw/goodreads/
+   ```
+
+4. **Run the pipeline end-to-end:**
    ```bash
    !export ATG_DATASET=goodreads && export PYTHONPATH=src && \
     python src/atg/data/normalize.py && \
