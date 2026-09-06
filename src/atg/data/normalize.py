@@ -84,7 +84,11 @@ def normalize_goodreads():
     print("Building interactions DataFrame...")
     interactions = pd.DataFrame(interaction_rows)
     print("Converting timestamps (this may take a minute)...")
-    timestamps = pd.to_datetime(interactions["date_added"], errors="coerce")
+    timestamps = pd.to_datetime(
+        interactions["date_added"], 
+        format="%a %b %d %H:%M:%S %z %Y", 
+        errors="coerce"
+    )
     interactions["timestamp"] = (
         timestamps.astype("int64") // 10**9
     ).where(timestamps.notna(), 0)
