@@ -20,42 +20,54 @@ from atg import config
 
 
 def build_splits(seed: int = config.RANDOM_SEED) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    print("Loading normalized interactions...")
     ratings = pd.read_csv(config.NORMALIZED_INTERACTIONS_CSV)
     rng = np.random.default_rng(seed)
 
+    print("Identifying cold users...")
     users = ratings["userId"].unique()
     shuffled_users = rng.permutation(users)
     n_cold_users = int(round(len(shuffled_users) * config.COLD_USER_FRAC))
-    cold_users = set(shuffled_users[:n_cold_users])
+    
+    cold_users_array = shuffled_users[:n_cold_users]
+    is_cold = ratings["userId"].isin(cold_users_array)
 
-    train_parts, val_parts, test_parts = [], [], []
-    for uid, group in ratings.groupby("userId", sort=True):
-        group = group.sort_values("timestamp")
-        n = len(group)
+    print("Sorting interactions chronologically...")
+    ratings = ratings.sort_values(["userId", "timestamp"])
+    
+    print("Computing split boundaries...")
+    ratings["user_total_ratings"] = ratings.groupby("userId")["userId"].transform("size")
+    ratings["chronological_rank"] = ratings.groupby("userId").cumcount()
+    
+    # Calculate bounds for cold users: they get a random cap between min and max
+    random_caps = rng.integers(config.COLD_TRAIN_MIN, config.COLD_TRAIN_MAX + 1, size=n_cold_users)
+    cold_cap_series = pd.Series(random_caps, index=cold_users_array)
+    
+    # Map the cap back to the ratings dataframe
+    ratings["cold_cap"] = ratings["userId"].map(cold_cap_series).fillna(0).astype(int)
+    cold_n_train = np.minimum(ratings["cold_cap"], ratings["user_total_ratings"])
+    cold_n_val = (ratings["user_total_ratings"] - cold_n_train) // 2
+    
+    # Calculate bounds for regular users
+    reg_n_train = np.round(ratings["user_total_ratings"] * config.TRAIN_FRAC).astype(int)
+    reg_n_val = np.round(ratings["user_total_ratings"] * config.VAL_FRAC).astype(int)
+    
+    # Combine based on is_cold
+    n_train = np.where(is_cold, cold_n_train, reg_n_train)
+    n_val = np.where(is_cold, cold_n_val, reg_n_val)
+    
+    print("Filtering datasets...")
+    rank = ratings["chronological_rank"]
+    train_mask = rank < n_train
+    val_mask = (rank >= n_train) & (rank < (n_train + n_val))
+    test_mask = rank >= (n_train + n_val)
+    
+    cols = ["userId", "itemId", "rating", "timestamp"]
+    train_df = ratings.loc[train_mask, cols].sample(frac=1, random_state=seed).reset_index(drop=True)
+    val_df = ratings.loc[val_mask, cols].sample(frac=1, random_state=seed).reset_index(drop=True)
+    test_df = ratings.loc[test_mask, cols].sample(frac=1, random_state=seed).reset_index(drop=True)
 
-        if uid in cold_users:
-            n_train = int(rng.integers(config.COLD_TRAIN_MIN, config.COLD_TRAIN_MAX + 1))
-            n_train = min(n_train, n)
-            remaining = group.iloc[n_train:]
-            n_val = len(remaining) // 2
-            train_g = group.iloc[:n_train]
-            val_g = remaining.iloc[:n_val]
-            test_g = remaining.iloc[n_val:]
-        else:
-            n_train = int(round(n * config.TRAIN_FRAC))
-            n_val = int(round(n * config.VAL_FRAC))
-            train_g = group.iloc[:n_train]
-            val_g = group.iloc[n_train : n_train + n_val]
-            test_g = group.iloc[n_train + n_val :]
-
-        train_parts.append(train_g)
-        val_parts.append(val_g)
-        test_parts.append(test_g)
-
-    train_df = pd.concat(train_parts).sample(frac=1, random_state=seed).reset_index(drop=True)
-    val_df = pd.concat(val_parts).sample(frac=1, random_state=seed).reset_index(drop=True)
-    test_df = pd.concat(test_parts).sample(frac=1, random_state=seed).reset_index(drop=True)
-
+    print(f"Created Train: {len(train_df)}, Val: {len(val_df)}, Test: {len(test_df)}")
     return train_df, val_df, test_df
 
 

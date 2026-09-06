@@ -20,7 +20,11 @@ def build_user_segments(train_df: pd.DataFrame) -> pd.DataFrame:
     with count=0 -- they are the hardest cold-start case.
     """
     counts = train_df.groupby("userId").size().rename("train_rating_count").reset_index()
-    counts["segment"] = counts["train_rating_count"].apply(segment_for_count)
+    counts["segment"] = pd.cut(
+        counts["train_rating_count"],
+        bins=[-np.inf, config.COLD_MAX - 1, config.WARM_MAX - 1, np.inf],
+        labels=["cold", "warm", "power"]
+    ).astype(str)
     return counts
 
 
