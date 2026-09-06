@@ -78,13 +78,13 @@ def normalize_goodreads():
                 "userId": rec["user_id"],
                 "itemId": rec["book_id"],
                 "rating": float(rating),
-                "timestamp": pd.to_datetime(
-                    rec.get("date_added"), errors="coerce"
-                ),
+                "date_added": rec.get("date_added"),
             }
         )
+    print("Building interactions DataFrame...")
     interactions = pd.DataFrame(interaction_rows)
-    timestamps = interactions["timestamp"]
+    print("Converting timestamps (this may take a minute)...")
+    timestamps = pd.to_datetime(interactions["date_added"], errors="coerce")
     interactions["timestamp"] = (
         timestamps.astype("int64") // 10**9
     ).where(timestamps.notna(), 0)
