@@ -65,24 +65,31 @@ def normalize_goodreads():
     if not interactions_path.exists() or not books_path.exists():
         raise FileNotFoundError(f"Goodreads dataset files missing in {config.RAW_DIR}")
 
-    # Standardize interactions. The byGenre interactions dump has no numeric
     # rating for unrated "want to read" / "reading" entries -- drop those and
     # keep only actual ratings (1-5); "date_added" becomes the timestamp.
-    interaction_rows = []
-    for rec in _iter_gzip_json(interactions_path):
-        rating = rec.get("rating")
-        if not rating:
-            continue
-        interaction_rows.append(
-            {
-                "userId": rec["user_id"],
-                "itemId": rec["book_id"],
-                "rating": float(rating),
-                "date_added": rec.get("date_added"),
-            }
-        )
+    import tempfile
+    import os
+    import csv
+
+    fd, temp_csv = tempfile.mkstemp(suffix=".csv")
+    with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["userId", "itemId", "rating", "date_added"])
+        for rec in _iter_gzip_json(interactions_path):
+            rating = rec.get("rating")
+            if not rating:
+                continue
+            writer.writerow([
+                rec["user_id"],
+                rec["book_id"],
+                float(rating),
+                rec.get("date_added", "")
+            ])
+
     print("Building interactions DataFrame...")
-    interactions = pd.DataFrame(interaction_rows)
+    interactions = pd.read_csv(temp_csv, dtype={"rating": "float32"})
+    os.remove(temp_csv)
+
     print("Converting timestamps (this may take a minute)...")
     timestamps = pd.to_datetime(
         interactions["date_added"], 
