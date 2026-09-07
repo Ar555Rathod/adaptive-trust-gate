@@ -94,7 +94,8 @@ def normalize_goodreads():
     timestamps = pd.to_datetime(
         interactions["date_added"], 
         format="%a %b %d %H:%M:%S %z %Y", 
-        errors="coerce"
+        errors="coerce",
+        utc=True
     )
     interactions["timestamp"] = (
         timestamps.astype("int64") // 10**9
