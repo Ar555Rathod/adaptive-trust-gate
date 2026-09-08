@@ -6,6 +6,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 DATASET_NAME = os.environ.get("ATG_DATASET", "movielens")
 
+# Which UCSD Book Graph "byGenre" slice to use when DATASET_NAME == "goodreads".
+# The dumps all share one schema, so switching genre only changes the filenames
+# normalize.py reads. "young_adult" is ~34.6M interactions (1.7GB gzipped);
+# "poetry" is ~2.7M (145MB) and is the tractable default for a Colab run.
+GOODREADS_GENRE = os.environ.get("ATG_GOODREADS_GENRE", "poetry")
+
 if DATASET_NAME == "movielens":
     RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ml-latest-small"
 elif DATASET_NAME == "goodreads":
@@ -13,8 +19,15 @@ elif DATASET_NAME == "goodreads":
 else:
     RAW_DIR = PROJECT_ROOT / "data" / "raw" / DATASET_NAME
 
-PROCESSED_DIR = PROJECT_ROOT / "data" / "processed" / DATASET_NAME
-RESULTS_DIR = PROJECT_ROOT / "results" / DATASET_NAME
+# Outputs are keyed on the genre too, so results from two Goodreads slices
+# don't overwrite each other (raw downloads still share data/raw/goodreads).
+if DATASET_NAME == "goodreads":
+    DATASET_SLUG = f"goodreads_{GOODREADS_GENRE}"
+else:
+    DATASET_SLUG = DATASET_NAME
+
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed" / DATASET_SLUG
+RESULTS_DIR = PROJECT_ROOT / "results" / DATASET_SLUG
 MODELS_DIR = RESULTS_DIR / "models"
 METRICS_DIR = RESULTS_DIR / "metrics"
 PREDICTIONS_DIR = RESULTS_DIR / "predictions"

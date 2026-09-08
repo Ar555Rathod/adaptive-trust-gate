@@ -56,14 +56,19 @@ def _iter_gzip_json(path):
 
 
 def normalize_goodreads():
-    print(f"Normalizing Goodreads data from {config.RAW_DIR}...")
+    print(f"Normalizing Goodreads '{config.GOODREADS_GENRE}' data from {config.RAW_DIR}...")
 
     # UCSD "byGenre" dumps: gzipped JSON-lines, one book/interaction per line.
-    books_path = config.RAW_DIR / "goodreads_books_young_adult.json.gz"
-    interactions_path = config.RAW_DIR / "goodreads_interactions_young_adult.json.gz"
+    # Every genre slice shares this schema, so the genre only selects filenames.
+    genre = config.GOODREADS_GENRE
+    books_path = config.RAW_DIR / f"goodreads_books_{genre}.json.gz"
+    interactions_path = config.RAW_DIR / f"goodreads_interactions_{genre}.json.gz"
 
     if not interactions_path.exists() or not books_path.exists():
-        raise FileNotFoundError(f"Goodreads dataset files missing in {config.RAW_DIR}")
+        raise FileNotFoundError(
+            f"Goodreads '{genre}' dataset files missing in {config.RAW_DIR}. "
+            f"Expected {books_path.name} and {interactions_path.name}."
+        )
 
     # rating for unrated "want to read" / "reading" entries -- drop those and
     # keep only actual ratings (1-5); "date_added" becomes the timestamp.

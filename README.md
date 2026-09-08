@@ -18,10 +18,30 @@ This repository contains the codebase for the **Adaptive Trust Gate** research p
    ```
 
 2. **Download the Dataset:**
-   We use the UCSD Goodreads Young Adult dataset. You will need to download the following two files and place them in `data/raw/goodreads/`:
-   - `goodreads_books_young_adult.json.gz`
-   - `goodreads_interactions_young_adult.json.gz`
-   *(Both files are available via the official UCSD Book Graph or Kaggle).*
+   We use the UCSD Book Graph (Goodreads) genre dumps. Every genre slice shares one
+   schema, so `ATG_GOODREADS_GENRE` selects which one the pipeline reads; the default
+   is `poetry`. Place both files for your chosen genre in `data/raw/goodreads/`:
+   - `goodreads_books_<genre>.json.gz`
+   - `goodreads_interactions_<genre>.json.gz`
+
+   Download them from `https://mcauleylab.ucsd.edu/public_datasets/gdrive/goodreads/byGenre/`
+   (note: the older `datarepo.eng.ucsd.edu` URLs found in many blog posts now 404):
+   ```bash
+   BASE=https://mcauleylab.ucsd.edu/public_datasets/gdrive/goodreads/byGenre
+   mkdir -p data/raw/goodreads
+   wget -P data/raw/goodreads $BASE/goodreads_books_poetry.json.gz
+   wget -P data/raw/goodreads $BASE/goodreads_interactions_poetry.json.gz
+   ```
+
+   | genre | interactions | interactions file |
+   |---|---|---|
+   | `poetry` | ~2.7M (145MB) | tractable for SVD++ in a Colab session |
+   | `comics_graphic` | ~7.3M | |
+   | `children` | ~9.4M | |
+   | `young_adult` | ~34.6M (1.7GB) | too large for Surprise's SVD++ in Colab |
+
+   Outputs are keyed on the genre, so results land in `results/goodreads_<genre>/` and
+   runs on different slices never overwrite each other.
 
 ## Running on Google Colab (Recommended)
 
@@ -50,7 +70,7 @@ Due to the size of the dataset (~34 million interactions) and the computational 
 
 4. **Run the pipeline end-to-end:**
    ```bash
-   !export ATG_DATASET=goodreads && export PYTHONPATH=src && \
+   !export ATG_DATASET=goodreads && export ATG_GOODREADS_GENRE=poetry && export PYTHONPATH=src && \
     python src/atg/data/normalize.py && \
     python scripts/01_build_splits.py && \
     python scripts/02_train_experts.py && \
@@ -63,4 +83,8 @@ Due to the size of the dataset (~34 million interactions) and the computational 
     python scripts/10_multiseed_full.py
    ```
 
-This will automatically normalize the dataset, train all models, and spit out the final comparative metrics in `results/goodreads/metrics/full_comparison_table.csv`.
+This will automatically normalize the dataset, train all models, and spit out the final comparative metrics in `results/goodreads_<genre>/metrics/full_comparison_table.csv`
+(e.g. `results/goodreads_poetry/...`).
+
+A ready-made Colab notebook for the poetry slice, which downloads the data directly and
+needs no Drive mount, is at `notebooks/goodreads_poetry_pipeline.ipynb`.
