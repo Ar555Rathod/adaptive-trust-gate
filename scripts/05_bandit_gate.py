@@ -120,13 +120,22 @@ def main():
         curves[label] = sq_err
 
     # Reference baselines over the SAME stream (no learning, deterministic).
+    # The static alpha is READ FROM Model 3's fitted output rather than
+    # hardcoded -- it is dataset-dependent (grid-searched on VAL in
+    # scripts/03_static_hybrid.py), so a literal here silently compares the
+    # bandit against a mis-specified baseline on any new dataset.
+    with open(config.METRICS_DIR / "model3_static_hybrid.json") as f:
+        static_alpha = float(json.load(f)["alpha"])
+    static_label = f"Static Hybrid (a={static_alpha:.2f})"
+    print(f"  static reference alpha (from Model 3): {static_alpha:.2f}")
+
     cf_only_err = (cf_stream - y_stream) ** 2
     cb_only_err = (cb_stream - y_stream) ** 2
-    static_pred = np.clip(0.84 * cf_stream + 0.16 * cb_stream, 0.5, 5.0)
+    static_pred = np.clip(static_alpha * cf_stream + (1 - static_alpha) * cb_stream, 0.5, 5.0)
     static_err = (static_pred - y_stream) ** 2
     curves["CF/SVD++ only"] = cf_only_err
     curves["Content-Based only"] = cb_only_err
-    curves["Static Hybrid (a=0.84)"] = static_err
+    curves[static_label] = static_err
 
     window = 500
     curve_df = pd.DataFrame({"step": np.arange(1, len(y_stream) + 1)})
@@ -145,7 +154,7 @@ def main():
     results["sequential_simulation_n_steps"] = int(len(y_stream))
 
     plt.figure(figsize=(9, 5.5))
-    for label in ["Bandit (LinUCB)", "Bandit (epsilon-greedy)", "Static Hybrid (a=0.84)", "CF/SVD++ only", "Content-Based only"]:
+    for label in ["Bandit (LinUCB)", "Bandit (epsilon-greedy)", static_label, "CF/SVD++ only", "Content-Based only"]:
         plt.plot(curve_df["step"], curve_df[label], label=label, linewidth=1.3)
     plt.xlabel(f"Interaction step (chronological, VAL+TEST, n={len(y_stream)})")
     plt.ylabel(f"Rolling RMSE (window={window})")

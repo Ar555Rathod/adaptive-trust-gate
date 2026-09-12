@@ -30,6 +30,18 @@ MODELS = {
     "7_SequentialGate": ("model7_sequential_gate_test.csv", "hybrid_pred"),
 }
 
+# Published combination strategies from scripts/11_external_baselines.py. They
+# are OPTIONAL: 08 predates 11 and must still run standalone, so a missing
+# prediction file skips the row rather than failing the whole comparison.
+EXTERNAL_BASELINES = {
+    "B1_SwitchingHybrid": ("b1_switching_hybrid_test.csv", "hybrid_pred"),
+    "B2_FWLS": ("b2_fwls_test.csv", "hybrid_pred"),
+    "B3_RidgeStack": ("b3_ridge_stack_test.csv", "hybrid_pred"),
+    "B4_GBMStack": ("b4_gbm_stack_test.csv", "hybrid_pred"),
+}
+for _name, _spec in EXTERNAL_BASELINES.items():
+    MODELS[_name] = _spec
+
 COMPUTE_COST_SOURCES = {
     "1_CF_SVDpp": ("experts_baseline.json", ["compute_cost", "cf_svdpp"]),
     "2_ContentBased": ("experts_baseline.json", ["compute_cost", "content_based"]),
@@ -39,6 +51,8 @@ COMPUTE_COST_SOURCES = {
     "6_GAEvolvedGate": ("model6_ga_gate.json", ["compute_cost"]),
     "7_SequentialGate": ("model7_sequential_gate.json", ["compute_cost"]),
 }
+for _name in EXTERNAL_BASELINES:
+    COMPUTE_COST_SOURCES[_name] = ("external_baselines.json", [_name, "compute_cost"])
 
 
 def dig(d, path):
@@ -53,6 +67,13 @@ def main():
 
     accuracy = {}
     ranking = {}
+    missing = [n for n, (f, _) in MODELS.items()
+               if not (config.PREDICTIONS_DIR / f).exists()]
+    for name in missing:
+        print(f"  (skipping {name}: predictions not found -- run scripts/11_external_baselines.py)")
+        MODELS.pop(name)
+        COMPUTE_COST_SOURCES.pop(name, None)
+
     for name, (fname, col) in MODELS.items():
         df = pd.read_csv(config.PREDICTIONS_DIR / fname)
         assert (df["userId"].to_numpy() == base["userId"].to_numpy()).all(), f"{name} not row-aligned"

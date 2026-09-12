@@ -9,6 +9,7 @@ This does NOT overwrite the canonical seed=42 results in results/ -- it's a
 separate robustness check, saved to results/metrics/multiseed_full_comparison.json.
 """
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -32,7 +33,10 @@ from atg.eval.metrics import segmented_rating_metrics
 from atg.eval.multiseed import aggregate_segmented_metrics
 from atg.utils.segments import build_user_segments, attach_segments
 
-SEEDS = [42, 1, 2, 3, 4]
+# Seeds are configurable so a long run can be cut short (or extended) without
+# editing code: ATG_SEEDS="42,1,2" runs three. The full pipeline is re-run per
+# seed -- experts included -- so wall-clock scales linearly with this list.
+SEEDS = [int(s) for s in os.environ.get("ATG_SEEDS", "42,1,2,3,4").split(",") if s.strip()]
 
 
 def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
