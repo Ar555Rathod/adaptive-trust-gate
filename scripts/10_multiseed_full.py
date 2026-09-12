@@ -72,7 +72,11 @@ def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
     test_s["m4"] = blend_scores(test_s["cf_pred"], test_s["cb_pred"], learned.g(test_s, item_pop, cf, cb))
     record("4_LearnedGate", "m4")
 
-    val_sorted = val_s.sort_values("timestamp").reset_index(drop=True)
+    # Stable + tiebroken, matching scripts/05_bandit_gate.py -- see the note
+    # there. Without this the bandit is the one model whose result does not
+    # reproduce across runs, which would show up as inflated seed variance.
+    val_sorted = val_s.sort_values(
+        ["timestamp", "userId", "itemId"], kind="mergesort").reset_index(drop=True)
     Xv = build_gate_features(val_sorted, item_pop, cf, cb).to_numpy(dtype=float)
     bandit = ContextualBanditGate(n_features=len(FEATURE_COLUMNS), strategy="ucb", seed=seed)
     run_stream(bandit, Xv, val_sorted["cf_pred"].to_numpy(dtype=float), val_sorted["cb_pred"].to_numpy(dtype=float),

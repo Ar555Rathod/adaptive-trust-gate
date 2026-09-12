@@ -63,7 +63,16 @@ def main():
     item_popularity = build_item_popularity(train_df)
 
     # ---- Phase 1: deployed eval (fit on VAL stream, freeze, score on TEST) ----
-    val_sorted = val_df.sort_values("timestamp").reset_index(drop=True)
+    # Stable sort with explicit tiebreakers. Goodreads date_added has
+    # second granularity and unparseable dates normalise to timestamp=0, so
+    # ties are common; pandas' default quicksort is not stable, and LinUCB is
+    # order-dependent, so tied rows arriving in a different order produce a
+    # different fitted bandit. Two runs of identical code and seed gave
+    # arm_pulls[0] of 1922 and 28359 and test RMSE 0.8993 vs 0.8972 -- every
+    # other model was bit-identical, because this is the only place stream
+    # order is load-bearing.
+    val_sorted = val_df.sort_values(
+        ["timestamp", "userId", "itemId"], kind="mergesort").reset_index(drop=True)
     X_val = build_gate_features(val_sorted, item_popularity, cf_expert, cb_expert).to_numpy(dtype=float)
     cf_val = val_sorted["cf_pred"].to_numpy(dtype=float)
     cb_val = val_sorted["cb_pred"].to_numpy(dtype=float)
@@ -106,7 +115,8 @@ def main():
     # ---- Phase 2: sequential simulation across VAL+TEST for the learning curve ----
     print("\nRunning sequential simulation (VAL+TEST, timestamp order, cold-start bandits)...")
     stream_df = pd.concat([val_df, test_df.drop(columns=["hybrid_pred", "gate_g"])], ignore_index=True)
-    stream_df = stream_df.sort_values("timestamp").reset_index(drop=True)
+    stream_df = stream_df.sort_values(
+        ["timestamp", "userId", "itemId"], kind="mergesort").reset_index(drop=True)
     X_stream = build_gate_features(stream_df, item_popularity, cf_expert, cb_expert).to_numpy(dtype=float)
     cf_stream = stream_df["cf_pred"].to_numpy(dtype=float)
     cb_stream = stream_df["cb_pred"].to_numpy(dtype=float)
