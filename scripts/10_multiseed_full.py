@@ -99,20 +99,43 @@ def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
 def main():
     items_df = pd.read_csv(config.NORMALIZED_ITEMS_CSV)
 
-    print(f"Running full 7-model pipeline across {len(SEEDS)} seeds: {SEEDS}")
-    per_seed = {}
-    for seed in SEEDS:
+    path = config.METRICS_DIR / "multiseed_full_comparison.json"
+
+    # Checkpoint after EVERY seed. This run is hours long and typically left
+    # unattended overnight on a Colab runtime that disconnects on idle; without
+    # an incremental write, a drop on the last seed discards every completed
+    # one. Re-running resumes from whatever seeds are already on disk.
+    per_seed, done_seeds = {}, []
+    if path.exists():
+        with open(path) as f:
+            prev = json.load(f)
+        per_seed = prev.get("per_seed", {})
+        done_seeds = list(prev.get("seeds", []))
+        if done_seeds:
+            print(f"Resuming: seeds already on disk = {done_seeds}")
+
+    todo = [s for s in SEEDS if s not in done_seeds]
+    print(f"Running full 7-model pipeline across {len(todo)} seeds: {todo}")
+
+    for seed in todo:
         start = time.perf_counter()
         results = run_pipeline_for_seed(seed, items_df)
         elapsed = time.perf_counter() - start
         for name, m in results.items():
             per_seed.setdefault(name, []).append(m)
+        done_seeds.append(seed)
         print(f"  seed={seed} done in {elapsed:.1f}s  "
               f"overall_rmse: " + ", ".join(f"{n.split('_',1)[1]}={m['overall']['rmse']:.3f}" for n, m in results.items()))
 
+        partial = {"seeds": done_seeds, "per_seed": per_seed,
+                   "aggregate": {n: aggregate_segmented_metrics(ms) for n, ms in per_seed.items()}}
+        with open(path, "w") as f:
+            json.dump(partial, f, indent=2)
+        print(f"    checkpointed {len(done_seeds)} seed(s) -> {path}")
+
     aggregate = {name: aggregate_segmented_metrics(metrics_list) for name, metrics_list in per_seed.items()}
 
-    print("\n[Multi-seed summary, test set, mean +/- std over 5 seeds]")
+    print(f"\n[Multi-seed summary, test set, mean +/- std over {len(done_seeds)} seeds: {done_seeds}]")
     header = f"  {'model':20s} {'overall':>16s} {'cold':>16s} {'warm':>16s} {'power':>16s}"
     print(header)
     for name, agg in aggregate.items():
@@ -125,8 +148,7 @@ def main():
                 cells.append("n/a")
         print(f"  {name:20s} " + " ".join(f"{c:>16s}" for c in cells))
 
-    out = {"seeds": SEEDS, "per_seed": per_seed, "aggregate": aggregate}
-    path = config.METRICS_DIR / "multiseed_full_comparison.json"
+    out = {"seeds": done_seeds, "per_seed": per_seed, "aggregate": aggregate}
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
     print(f"\nSaved -> {path}")
