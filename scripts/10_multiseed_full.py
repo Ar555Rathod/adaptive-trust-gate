@@ -28,6 +28,7 @@ from atg.gates.bandit import ContextualBanditGate, run_stream
 from atg.gates.ga import GAEvolvedGate
 from atg.gates.sequential import SequentialGate, build_user_train_sequences
 from atg.gates.features import build_item_popularity, build_gate_features, FEATURE_COLUMNS
+from atg import baselines as atg_baselines
 from atg.models.hybrid import blend_scores
 from atg.eval.metrics import segmented_rating_metrics
 from atg.eval.multiseed import aggregate_segmented_metrics
@@ -53,7 +54,8 @@ def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
         out["cb_pred"] = cb.predict_batch(out)
         return out
 
-    val_s, test_s = score(val_df), score(test_df)
+    val_s = score(val_df).reset_index(drop=True)
+    test_s = score(test_df).reset_index(drop=True)
     results = {}
 
     def record(name, pred_col):
@@ -72,16 +74,22 @@ def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
     test_s["m4"] = blend_scores(test_s["cf_pred"], test_s["cb_pred"], learned.g(test_s, item_pop, cf, cb))
     record("4_LearnedGate", "m4")
 
+    # Gate features are the expensive part of a seed (one content-similarity
+    # lookup per row), so build them ONCE per split in the split's own order and
+    # permute for the bandit rather than rebuilding on the sorted frame.
+    Xv = build_gate_features(val_s, item_pop, cf, cb).to_numpy(dtype=float)
+    Xt = build_gate_features(test_s, item_pop, cf, cb).to_numpy(dtype=float)
+
     # Stable + tiebroken, matching scripts/05_bandit_gate.py -- see the note
     # there. Without this the bandit is the one model whose result does not
     # reproduce across runs, which would show up as inflated seed variance.
-    val_sorted = val_s.sort_values(
-        ["timestamp", "userId", "itemId"], kind="mergesort").reset_index(drop=True)
-    Xv = build_gate_features(val_sorted, item_pop, cf, cb).to_numpy(dtype=float)
+    order = val_s.sort_values(
+        ["timestamp", "userId", "itemId"], kind="mergesort").index.to_numpy()
+    val_sorted = val_s.loc[order].reset_index(drop=True)
+    Xv_sorted = Xv[order]
     bandit = ContextualBanditGate(n_features=len(FEATURE_COLUMNS), strategy="ucb", seed=seed)
-    run_stream(bandit, Xv, val_sorted["cf_pred"].to_numpy(dtype=float), val_sorted["cb_pred"].to_numpy(dtype=float),
+    run_stream(bandit, Xv_sorted, val_sorted["cf_pred"].to_numpy(dtype=float), val_sorted["cb_pred"].to_numpy(dtype=float),
                val_sorted["rating"].to_numpy(dtype=float), explore=True)
-    Xt = build_gate_features(test_s, item_pop, cf, cb).to_numpy(dtype=float)
     preds5, _, _ = run_stream(bandit, Xt, test_s["cf_pred"].to_numpy(dtype=float), test_s["cb_pred"].to_numpy(dtype=float),
                                test_s["rating"].to_numpy(dtype=float), explore=False)
     test_s["m5"] = preds5
@@ -96,6 +104,22 @@ def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
     g7, _ = seq_gate.g(test_s, seqs, item_pop, cf, cb)
     test_s["m7"] = blend_scores(test_s["cf_pred"], test_s["cb_pred"], g7)
     record("7_SequentialGate", "m7")
+
+    # External baselines under the SAME seed, so the headline table reports
+    # mean +/- std for the published alternatives too. Without this the
+    # comparison is asymmetric: a gate with error bars against a baseline
+    # point estimate, when the gaps between them are ~0.001-0.007.
+    def arrs(df):
+        return (df["cf_pred"].to_numpy(dtype=float), df["cb_pred"].to_numpy(dtype=float),
+                df["rating"].to_numpy(dtype=float),
+                df["train_rating_count"].to_numpy(dtype=float))
+
+    cf_v, cb_v, y_v, cnt_v = arrs(val_s)
+    cf_t, cb_t, _, cnt_t = arrs(test_s)
+    fitted, _ = atg_baselines.fit_all(Xv, cf_v, cb_v, y_v, cnt_v, seed=seed)
+    for name, pred in atg_baselines.predict_all(fitted, Xt, cf_t, cb_t, cnt_t).items():
+        test_s[name] = pred
+        record(name, name)
 
     return results
 
