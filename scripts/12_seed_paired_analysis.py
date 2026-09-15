@@ -45,6 +45,10 @@ KEY_PAIRS = [
     ("6_GAEvolvedGate", "4_LearnedGate", "GA search vs hand-picked features"),
     ("7_SequentialGate", "4_LearnedGate", "BiLSTM vs linear gate"),
     ("5_BanditGate", "3_StaticHybrid", "bandit vs the constant it replaces"),
+    ("8_CalibratedGate", "4_LearnedGate", "adding the global correction to the gate"),
+    ("8_CalibratedGate", "B2_FWLS", "calibrated gate vs unconstrained linear stacking"),
+    ("8_CalibratedGate", "B4_GBMStack", "calibrated gate vs nonlinear stacking"),
+    ("8_CalibratedGate", "8a_CalibratedNoCounts", "do the count features earn their place"),
 ]
 
 

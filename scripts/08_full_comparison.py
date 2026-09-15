@@ -39,6 +39,13 @@ EXTERNAL_BASELINES = {
     "B3_RidgeStack": ("b3_ridge_stack_test.csv", "hybrid_pred"),
     "B4_GBMStack": ("b4_gbm_stack_test.csv", "hybrid_pred"),
 }
+# Model 8 (scripts/13_calibrated_gate.py): optional for the same reason.
+CALIBRATED_GATES = {
+    "8_CalibratedGate": ("model8_calibrated_gate_test.csv", "hybrid_pred"),
+    "8a_CalibratedNoCounts": ("model8a_calibrated_no_counts_test.csv", "hybrid_pred"),
+}
+for _name, _spec in CALIBRATED_GATES.items():
+    MODELS[_name] = _spec
 for _name, _spec in EXTERNAL_BASELINES.items():
     MODELS[_name] = _spec
 
@@ -53,6 +60,8 @@ COMPUTE_COST_SOURCES = {
 }
 for _name in EXTERNAL_BASELINES:
     COMPUTE_COST_SOURCES[_name] = ("external_baselines.json", [_name, "compute_cost"])
+COMPUTE_COST_SOURCES["8_CalibratedGate"] = ("model8_calibrated_gate.json", ["model8_calibrated_gate", "compute_cost"])
+COMPUTE_COST_SOURCES["8a_CalibratedNoCounts"] = ("model8_calibrated_gate.json", ["model8a_calibrated_no_counts", "compute_cost"])
 
 
 def dig(d, path):
@@ -106,8 +115,8 @@ def main():
     print(f"Saved -> {sig_path}")
 
     key_pairs = sig_df[(sig_df["segment"] == "overall") &
-                        (((sig_df["model_a"] == "3_StaticHybrid") & (sig_df["model_b"].str.startswith(("4_", "5_", "6_", "7_")))) |
-                         ((sig_df["model_b"] == "3_StaticHybrid") & (sig_df["model_a"].str.startswith(("4_", "5_", "6_", "7_")))))]
+                        (((sig_df["model_a"] == "3_StaticHybrid") & (sig_df["model_b"].str.startswith(("4_", "5_", "6_", "7_", "8_", "8a_")))) |
+                         ((sig_df["model_b"] == "3_StaticHybrid") & (sig_df["model_a"].str.startswith(("4_", "5_", "6_", "7_", "8_", "8a_")))))]
     print("\nModel 3 (Static Hybrid) vs each adaptive gate, overall test set:")
     print(key_pairs[["model_a", "model_b", "rmse_a", "rmse_b", "mean_diff", "bootstrap_significant", "wilcoxon_p"]].to_string(index=False))
 

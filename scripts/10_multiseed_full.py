@@ -29,6 +29,7 @@ from atg.gates.ga import GAEvolvedGate
 from atg.gates.sequential import SequentialGate, build_user_train_sequences
 from atg.gates.features import build_item_popularity, build_gate_features, FEATURE_COLUMNS
 from atg import baselines as atg_baselines
+from atg.gates.calibrated import CalibratedGate
 from atg.models.hybrid import blend_scores
 from atg.eval.metrics import segmented_rating_metrics
 from atg.eval.multiseed import aggregate_segmented_metrics
@@ -38,6 +39,17 @@ from atg.utils.segments import build_user_segments, attach_segments
 # editing code: ATG_SEEDS="42,1,2" runs three. The full pipeline is re-run per
 # seed -- experts included -- so wall-clock scales linearly with this list.
 SEEDS = [int(s) for s in os.environ.get("ATG_SEEDS", "42,1,2,3,4").split(",") if s.strip()]
+
+# Every model a completed seed must contain. A checkpoint written by older code
+# (e.g. before Model 8 existed) is missing some of these; resuming from it would
+# skip those seeds and the new models would never be computed, so it is set
+# aside instead -- see main().
+EXPECTED_MODELS = [
+    "1_CF_SVDpp", "2_ContentBased", "3_StaticHybrid", "4_LearnedGate", "5_BanditGate",
+    "6_GAEvolvedGate", "7_SequentialGate",
+    *atg_baselines.BASELINE_NAMES,
+    "8_CalibratedGate", "8a_CalibratedNoCounts",
+]
 
 
 def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
@@ -121,6 +133,14 @@ def run_pipeline_for_seed(seed: int, items_df: pd.DataFrame) -> dict:
         test_s[name] = pred
         record(name, name)
 
+    # Model 8, with and without count features, from the same feature matrices.
+    # Both are recorded so the seeds, not seed 42, decide whether the count
+    # features earn their place.
+    for name, use_counts in (("8_CalibratedGate", True), ("8a_CalibratedNoCounts", False)):
+        cal = CalibratedGate(use_count_features=use_counts, seed=seed).fit_arrays(Xv, cf_v, cb_v, y_v)
+        test_s[name], _ = cal.predict_arrays(Xt, cf_t, cb_t)
+        record(name, name)
+
     return results
 
 
@@ -139,11 +159,19 @@ def main():
             prev = json.load(f)
         per_seed = prev.get("per_seed", {})
         done_seeds = list(prev.get("seeds", []))
-        if done_seeds:
+        stale = [m for m in EXPECTED_MODELS
+                 if len(per_seed.get(m, [])) != len(done_seeds)]
+        if done_seeds and stale:
+            aside = path.with_name(f"{path.stem}.stale_{int(time.time())}.json")
+            path.rename(aside)
+            print(f"Checkpoint for seeds {done_seeds} lacks {stale}; "
+                  f"set aside as {aside.name} and starting fresh")
+            per_seed, done_seeds = {}, []
+        elif done_seeds:
             print(f"Resuming: seeds already on disk = {done_seeds}")
 
     todo = [s for s in SEEDS if s not in done_seeds]
-    print(f"Running full 7-model pipeline across {len(todo)} seeds: {todo}")
+    print(f"Running {len(EXPECTED_MODELS)}-model pipeline across {len(todo)} seeds: {todo}")
 
     for seed in todo:
         start = time.perf_counter()
