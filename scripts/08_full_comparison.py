@@ -79,7 +79,7 @@ def main():
     missing = [n for n, (f, _) in MODELS.items()
                if not (config.PREDICTIONS_DIR / f).exists()]
     for name in missing:
-        print(f"  (skipping {name}: predictions not found -- run scripts/11_external_baselines.py)")
+        print(f"  (skipping {name}: {MODELS[name][0]} not found -- run the script that writes it)")
         MODELS.pop(name)
         COMPUTE_COST_SOURCES.pop(name, None)
 

@@ -12,10 +12,19 @@ DATASET_NAME = os.environ.get("ATG_DATASET", "movielens")
 # "poetry" is ~2.7M (145MB) and is the tractable default for a Colab run.
 GOODREADS_GENRE = os.environ.get("ATG_GOODREADS_GENRE", "poetry")
 
+# Which Amazon Reviews 2023 category to use when DATASET_NAME == "amazon". Every
+# category shares one schema (ratings as user_id,parent_asin,rating,timestamp;
+# item metadata as JSON lines), so the category only selects filenames.
+AMAZON_CATEGORY = os.environ.get("ATG_AMAZON_CATEGORY", "CDs_and_Vinyl")
+
 if DATASET_NAME == "movielens":
     RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ml-latest-small"
 elif DATASET_NAME == "goodreads":
     RAW_DIR = PROJECT_ROOT / "data" / "raw" / "goodreads"
+elif DATASET_NAME == "movielens1m":
+    RAW_DIR = PROJECT_ROOT / "data" / "raw" / "ml-1m"
+elif DATASET_NAME == "amazon":
+    RAW_DIR = PROJECT_ROOT / "data" / "raw" / "amazon"
 else:
     RAW_DIR = PROJECT_ROOT / "data" / "raw" / DATASET_NAME
 
@@ -23,6 +32,8 @@ else:
 # don't overwrite each other (raw downloads still share data/raw/goodreads).
 if DATASET_NAME == "goodreads":
     DATASET_SLUG = f"goodreads_{GOODREADS_GENRE}"
+elif DATASET_NAME == "amazon":
+    DATASET_SLUG = f"amazon_{AMAZON_CATEGORY}"
 else:
     DATASET_SLUG = DATASET_NAME
 
