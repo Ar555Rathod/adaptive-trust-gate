@@ -38,13 +38,22 @@ def build_gate_features(df: pd.DataFrame, item_popularity: dict, cf_expert, cb_e
     user_counts = df["train_rating_count"].to_numpy(dtype=float)
     item_counts = np.array([item_popularity.get(i, 0) for i in df[item_col]], dtype=float)
 
-    cf_known_user = np.array([cf_expert.is_known_user(u) for u in df[user_col]], dtype=float)
-    cf_known_item = np.array([cf_expert.is_known_item(i) for i in df[item_col]], dtype=float)
+    # Batched where the experts support it. The per-row paths (is_known_user,
+    # similarity_diagnostics) are kept as a fallback so any other expert object
+    # still works; they are equivalent, just far slower at scale.
+    if hasattr(cf_expert, "known_masks"):
+        cf_known_user, cf_known_item = cf_expert.known_masks(df[user_col], df[item_col])
+    else:
+        cf_known_user = np.array([cf_expert.is_known_user(u) for u in df[user_col]], dtype=float)
+        cf_known_item = np.array([cf_expert.is_known_item(i) for i in df[item_col]], dtype=float)
 
-    diagnostics = [cb_expert.similarity_diagnostics(u, i) for u, i in zip(df[user_col], df[item_col])]
-    cb_max_sim = np.array([d[0] for d in diagnostics], dtype=float)
-    cb_support = np.array([d[1] for d in diagnostics], dtype=float)
-    cb_sim_weight_sum = np.array([d[2] for d in diagnostics], dtype=float)
+    if hasattr(cb_expert, "score_batch"):
+        _, cb_max_sim, cb_support, cb_sim_weight_sum = cb_expert.score_batch(df, user_col, item_col)
+    else:
+        diagnostics = [cb_expert.similarity_diagnostics(u, i) for u, i in zip(df[user_col], df[item_col])]
+        cb_max_sim = np.array([d[0] for d in diagnostics], dtype=float)
+        cb_support = np.array([d[1] for d in diagnostics], dtype=float)
+        cb_sim_weight_sum = np.array([d[2] for d in diagnostics], dtype=float)
 
     cf_pred = df["cf_pred"].to_numpy(dtype=float)
     cb_pred = df["cb_pred"].to_numpy(dtype=float)
