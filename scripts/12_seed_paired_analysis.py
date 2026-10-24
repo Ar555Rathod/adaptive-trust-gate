@@ -83,6 +83,12 @@ def verdict(r):
 
 def main():
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else config.METRICS_DIR / "multiseed_full_comparison.json"
+    if not path.exists():
+        raise SystemExit(
+            f"No multi-seed checkpoint at {path}.\n"
+            "scripts/10_multiseed_full.py writes it after each completed seed, so this means "
+            "no seed finished -- check that run's output for the reason (an 'exit -9' there is "
+            "an out-of-memory kill, not a crash).")
     data = json.loads(path.read_text())
     seeds = data["seeds"]
     print(f"source: {path}")
